@@ -67,41 +67,6 @@ $ wordpress-migrate export --lang="en" --site="knowledge"
 
 This will export all categories and posts for all sites.
 
-### Preparing and Importing Assets
-
-Once the Wordpress content is imported we can proceed to the assets import. This step will import all used assets in both the `blog` and `knowledge` sites. Assets not used, meaning not referenced in any posts, will be discarded. To proceed, we need first to prepare the assets:
-
-```
-$ wordpress-migrate prepare assets --lang="en"
-```
-
-then import them:
-
-```
-$ wordpress-migrate import assets --lang="en"
-```
-
-This steps might take quite some time as it imports every assets one by one, and for each asset: upload to Contentful the assets definition, upload the asset file in Contentful, run some validation and publish it. Once all assets have been imported the script retrieves the new Contentful assets urls so they can be used to remap all assets referenced in our entries during the next step.
-
-### Preparing and Importing Entries
-
-The last step in the migration is to import all entries. A lot of operations are done in that step including: merging categories, cleaning titles/descriptions, transforming content to markdown, remapping ids, remapping urls, etc.
-
-To proceed, we need first to prepare the entries:
-
-```
-$ wordpress-migrate prepare entries --lang="en"
-```
-
-then import them:
-
-```
-$ wordpress-migrate import entries --lang="en"
-```
-
-This steps might take quite some time as it imports every entries one by one, and for each entry: upload it to Contentful, run some validation and publish it.
-The script will also generate a `csv` file needed by OPS to produce the nginx redirections needed to ensure continuity of service between the old sites and the new ones. This file can be found under `/data/en/export/rewrite.csv` (where data is the workspace provided by `--dir` option).
-
 ## Configure Settings.js
 
 The `settings.js` is used by the `wordpress-migrate` to access some information required during the preparation of the entries such as: selecting the source language, remapping ids, merging categories, ignoring posts, etc.
@@ -114,73 +79,6 @@ module.exports = {
     lang: 'en',
   },
   prepare: {
-    spaces: {
-      codes: {
-        en: '1',
-        fr: '2',
-        de: '3',
-        es: '4',
-        pt: '5',
-        it: '6',
-        tr: '7',
-      },
-    },
-    exclude: {
-      categories: {
-        blog: {
-          en: [
-            1,
-          ],
-          fr: [
-            1,
-          ],
-          de: [
-            1,
-          ],
-          es: [
-            1,
-          ],
-          pt: [
-            1,
-          ],
-          it: [
-            1,
-          ],
-          tr: [
-            1,
-          ],
-        },
-        knowledge: {
-          en: [
-            1,
-            8,
-          ],
-          fr: [
-            1,
-            68,
-          ],
-          de: [
-            1,
-          ],
-          es: [
-            1,
-            73,
-          ],
-          pt: [
-            1,
-            72,
-          ],
-          it: [
-            1,
-            5,
-          ],
-          tr: [
-            1,
-            8,
-          ],
-        },
-      },
-    },
     // Maps of Wordpress entry IDs in English "knowledge" site to English "blog" site.
     remap: {
       categories: {
@@ -225,6 +123,4 @@ module.exports = {
 ```
 
 * `source.lang`: provides the source language, in the case of all our migrations it is English.
-* `prepare.spaces`: provides the space code used in the remapping of entries ids. This settings should not be changed as already configured properly.
-* `prepare.exclude`: provides the list of categories to be excluded. All categories and posts linked to those categories will be ignored by the prepare step and therefore not be imported in Contentful. This settings is used to ignore the `Uncategorized` and the `CoachKnows` categories for instance.
 * `prepare.remap`: provides the remapping of `knowledge` categories to `blog` categories. This settings should not be changed as already configured properly.
