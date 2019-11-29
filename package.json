@@ -1,0 +1,13 @@
+{
+  "name": "@scriple.io/wordpress-migrate",
+  "devDependencies": {
+    "lerna": "^2.9.1"
+  },
+  "scripts": {
+    "clean": "lerna clean --yes && rm -rf node_modules"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "private": true
+}

@@ -1,0 +1,3 @@
+.wordpress-migrate/
+settings.js
+contentful-import-error-log-*.json

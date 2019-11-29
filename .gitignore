@@ -1,0 +1,22 @@
+# Node
+node_modules/
+npm-debug.log
+
+# Yarn
+yarn-error.log
+
+# Linter
+.eslintcache
+
+# OS and IDE
+.DS_Store
+.idea
+
+# Lerna
+lerna-debug.log
+
+# Packages
+dist
+
+# Exporter
+data

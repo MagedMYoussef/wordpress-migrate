@@ -1,0 +1,64 @@
+{
+  "name": "@scriple.io/wordpress-migrate-cli",
+  "version": "1.0.0",
+  "description": "Wordpress Exporter CLI for scriple.io sites",
+  "main": "index.js",
+  "scripts": {
+    "lint": "eslint src/**",
+    "clean": "rimraf dist",
+    "build": "yarn run clean && babel src --out-dir dist --source-maps",
+    "watch": "yarn run clean && babel src --out-dir dist --watch --source-maps"
+  },
+  "babel": {
+    "presets": [
+      [
+        "env",
+        {
+          "targets": {
+            "node": "current"
+          }
+        }
+      ]
+    ]
+  },
+  "eslintConfig": {
+    "extends": [
+      "airbnb-base"
+    ],
+    "env": {
+      "node": true
+    }
+  },
+  "dependencies": {
+    "bluebird": "^3.5.1",
+    "chalk": "^2.3.0",
+    "contentful-export": "^6.0.4",
+    "contentful-import": "^6.2.3",
+    "contentful-management": "^4.2.2",
+    "fs-extra": "^4.0.2",
+    "globby": "^6.1.0",
+    "html-entities": "^1.2.1",
+    "json2csv": "^3.11.5",
+    "lodash": "^4.17.4",
+    "remark": "^9.0.0",
+    "remark-stringify": "^5.0.0",
+    "turndown": "^4.0.1",
+    "uniqid": "^4.1.1",
+    "wpapi": "^1.1.2",
+    "yargs": "^10.0.3",
+    "node-html-parser": "^1.1.16",
+    "axios": "^0.19.0",
+    "jsdom": "^15.2.1"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
+    "eslint": "^4.9.0",
+    "eslint-config-airbnb-base": "^12.1.0",
+    "eslint-plugin-import": "^2.7.0",
+    "rimraf": "^2.6.2"
+  },
+  "bin": {
+    "wordpress-migrate": "./bin/wordpress-migrate.js"
+  }
+}
