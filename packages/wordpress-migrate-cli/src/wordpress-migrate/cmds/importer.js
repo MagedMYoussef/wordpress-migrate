@@ -4,17 +4,9 @@ import _ from 'lodash';
 import { argv } from 'yargs';
 import Promise from 'bluebird';
 import logger from '../logger';
-import { connect } from '../utils';
+import { connect, asyncForEach, validBaseDir } from '../utils';
 
 const axios = require('axios');
-
-
-function validBaseDir(basedir) {
-  return fs.existsSync(path.join(basedir, 'dump', 'assets')) &&
-  fs.existsSync(path.join(basedir, 'dump', 'entries', 'post')) &&
-  fs.existsSync(path.join(basedir, 'dump', 'entries', 'category')) &&
-  fs.existsSync(path.join(basedir, 'dump', 'entries', 'tag'));
-}
 
 export const command = 'import';
 export const describe = 'Import json to site';
@@ -81,7 +73,7 @@ async function insertAllCategories(wp, categories) {
   const newCategories = [];
   const existingCategories = await wp.categories();
 
-  await categories.forEach((category) => {
+  await asyncForEach(categories, async (category) => {
     const existingCategory = existingCategories.filter(item => item.slug === category.slug);
 
     if (existingCategory && existingCategory.length > 0) {
@@ -90,13 +82,14 @@ async function insertAllCategories(wp, categories) {
     } else {
       logger.info(`Creating category with slug: ${category.slug}`);
 
-      wp.categories()
+      await wp.categories()
         .create({
           name: category.name,
           slug: category.slug,
           taxonomy: category.taxonomy,
         })
         .then((response) => {
+          logger.info(`Category with slug: ${category.slug} was created.`);
           newCategories.push(response);
         })
         .catch((err) => {
@@ -113,22 +106,23 @@ async function insertAllTags(wp, tags) {
   const newTags = [];
   const existingTags = await wp.tags();
 
-  await tags.forEach((tag) => {
+  await asyncForEach(tags, async (tag) => {
     const existingTag = existingTags.filter(item => item.slug === tag.slug);
 
     if (existingTag && existingTag.length > 0) {
-      logger.warn(`Tag already exists: ${existingTag[0].slug}`);
+      logger.warn(`tag already exists: ${existingTag[0].slug}`);
       newTags.push(existingTag[0]);
     } else {
       logger.info(`Creating tag with slug: ${tag.slug}`);
 
-      wp.tags()
+      await wp.categories()
         .create({
           name: tag.name,
           slug: tag.slug,
           taxonomy: tag.taxonomy,
         })
         .then((response) => {
+          logger.info(`Tag with slug: ${tag.slug} was created.`);
           newTags.push(response);
         })
         .catch((err) => {
@@ -141,6 +135,41 @@ async function insertAllTags(wp, tags) {
   return newTags;
 }
 
+async function insertAllUsers(wp, users) {
+  const newUsers = [];
+  const existingUsers = await wp.users();
+
+  await asyncForEach(users, async (user) => {
+    const existingUser = existingUsers.filter(item => item.slug === user.slug);
+
+    if (existingUser && existingUser.length > 0) {
+      logger.warn(`user already exists: ${existingUser[0].slug}`);
+      newUsers.push(existingUser[0]);
+    } else {
+      logger.info(`Creating user with slug: ${user.slug}`);
+
+      await wp.users()
+        .create({
+          name: user.name,
+          email: user.email,
+          password: 'zicQ3wmuj0Y8ba3',
+          username: user.slug,
+          avatar_urls: user.avatar_urls,
+          description: user.description,
+        })
+        .then((response) => {
+          logger.info(`User with slug: ${response.slug} was created.`);
+          newUsers.push(response);
+        })
+        .catch((err) => {
+          logger.error('Error happened on creating the user.');
+          logger.error(err.message);
+        });
+    }
+  });
+
+  return newUsers;
+}
 
 export async function handler({
   host, lang, site, dir,
@@ -166,7 +195,7 @@ export async function handler({
     logger.info(`Retrieved ${tags.length} tags`);
 
     logger.info('Getting users from files...');
-    const users = await getAllUsers(basedir);
+    let users = await getAllUsers(basedir);
     logger.info(`Retrieved ${users.length} users`);
 
     logger.info('Getting posts from files...');
@@ -177,12 +206,16 @@ export async function handler({
     categories = categories.filter(item => item.count > 0);
     logger.info(`Migrating ${categories.length} categories...`);
     categories = await insertAllCategories(wp, categories);
+    logger.info(`Categories were inserted successfully: ${categories.length}`);
 
     tags = tags.filter(item => item.count > 0);
     logger.info(`Migrating ${tags.length} tags...`);
     tags = await insertAllTags(wp, tags);
+    logger.info('Tags were inserted successfully.');
 
     logger.info(`Migrating ${users.length} users...`);
+    users = await insertAllUsers(wp, users);
+    logger.info('Users were inserted successfully.');
 
     logger.info(`Migrating ${posts.length} posts...`);
   } catch (error) {
