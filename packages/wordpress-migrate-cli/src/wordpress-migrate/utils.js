@@ -1,3 +1,4 @@
+import fs from 'fs-extra';
 import path from 'path';
 import WPAPI from 'wpapi';
 import logger from './logger';
@@ -22,4 +23,18 @@ export function timestamp({ date = new Date() } = {}) {
 
 export function rewriteWithCDN(url) {
   return url.replace(/^\/\/www./, '//cdn.');
+}
+
+export async function asyncForEach(array, callback) {
+  for (let index = 0; index < array.length; index++) {
+    await callback(array[index], index, array);
+  }
+}
+
+export function validBaseDir(basedir) {
+  return fs.existsSync(path.join(basedir, 'dump', 'assets')) &&
+  fs.existsSync(path.join(basedir, 'dump', 'entries', 'post')) &&
+  fs.existsSync(path.join(basedir, 'dump', 'entries', 'user')) &&
+  fs.existsSync(path.join(basedir, 'dump', 'entries', 'category')) &&
+  fs.existsSync(path.join(basedir, 'dump', 'entries', 'tag'));
 }
