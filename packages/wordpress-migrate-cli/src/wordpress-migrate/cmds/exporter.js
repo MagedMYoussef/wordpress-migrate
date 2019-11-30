@@ -106,6 +106,16 @@ async function fetchAllTags(wp, { offset = 0, perPage = argv.test ? 10 : 100 } =
   return tags;
 }
 
+async function fetchAllUsers(wp, { offset = 0, perPage = argv.test ? 10 : 100 } = {}) {
+  const users = await wp.users({ hideEmpty: true }).perPage(perPage).offset(offset);
+
+  if (users.length === perPage && !argv.test) {
+    return users.concat(await fetchAllUsers(wp, { offset: offset + perPage }));
+  }
+
+  return users;
+}
+
 function validBaseDir(basedir) {
   return fs.existsSync(path.join(basedir, 'dump', 'assets')) &&
   fs.existsSync(path.join(basedir, 'dump', 'entries', 'post')) &&
@@ -147,6 +157,10 @@ export async function handler({
     const posts = await fetchAllPosts(wp, categoryIds);
     logger.info(`Retrieved ${posts.length} posts`);
 
+    logger.info('Fetching users...');
+    const users = await fetchAllUsers(wp);
+    logger.info(`Retrieved ${users.length} users`);
+
     logger.info('Exporting categories...');
     categories.map(async (category) => {
       const file = path.join(basedir, 'dump', 'entries', 'category', `${site}-${category.id}.json`);
@@ -166,6 +180,13 @@ export async function handler({
       const file = path.join(basedir, 'dump', 'entries', 'post', `${site}-${post.id}.json`);
       logger.info(`Outputting post ${post.id} in ${path.relative(basedir, file)}`);
       await fs.writeJson(file, Object.assign({}, post, { site, type: 'post' }));
+    });
+
+    logger.info('Exporting users...');
+    users.map(async (user) => {
+      const file = path.join(basedir, 'dump', 'entries', 'user', `${site}-${user.id}.json`);
+      logger.info(`Outputting user ${user.id} in ${path.relative(basedir, file)}`);
+      await fs.writeJson(file, Object.assign({}, user, { site, type: 'user' }));
     });
   } catch (error) {
     logger.error(error);
