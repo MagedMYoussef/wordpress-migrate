@@ -85,7 +85,7 @@ async function insertAllCategories(wp, categories) {
     const existingCategory = existingCategories.filter(item => item.slug === category.slug);
 
     if (existingCategory && existingCategory.length > 0) {
-      logger.warn(`Category already exists: ${existingCategory.slug}`);
+      logger.warn(`Category already exists: ${existingCategory[0].slug}`);
       newCategories.push(existingCategory[0]);
     } else {
       logger.info(`Creating category with slug: ${category.slug}`);
@@ -107,6 +107,38 @@ async function insertAllCategories(wp, categories) {
   });
 
   return newCategories;
+}
+
+async function insertAllTags(wp, tags) {
+  const newTags = [];
+  const existingTags = await wp.tags();
+
+  await tags.forEach((tag) => {
+    const existingTag = existingTags.filter(item => item.slug === tag.slug);
+
+    if (existingTag && existingTag.length > 0) {
+      logger.warn(`Tag already exists: ${existingTag[0].slug}`);
+      newTags.push(existingTag[0]);
+    } else {
+      logger.info(`Creating tag with slug: ${tag.slug}`);
+
+      wp.tags()
+        .create({
+          name: tag.name,
+          slug: tag.slug,
+          taxonomy: tag.taxonomy,
+        })
+        .then((response) => {
+          newTags.push(response);
+        })
+        .catch((err) => {
+          logger.error('Error happened on creating the tag.');
+          logger.error(err.message);
+        });
+    }
+  });
+
+  return newTags;
 }
 
 
@@ -148,6 +180,7 @@ export async function handler({
 
     tags = tags.filter(item => item.count > 0);
     logger.info(`Migrating ${tags.length} tags...`);
+    tags = await insertAllTags(wp, tags);
 
     logger.info(`Migrating ${users.length} users...`);
 

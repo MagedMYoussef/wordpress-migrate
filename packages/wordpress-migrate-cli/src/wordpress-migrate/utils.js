@@ -7,6 +7,8 @@ export function connect({ host }) {
 
   return new WPAPI({
     endpoint: `${host}/wp-json`,
+    username: 'magedm',
+    password: 'mg01069745475',
   });
 }
 
