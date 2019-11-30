@@ -7,6 +7,16 @@ const options = require('yargs') // eslint-disable-line
     describe: 'choose a host',
     default: 'http://bel3raby.net',
   })
+  .option('lang', {
+    describe: 'choose locale',
+    default: 'en',
+    choices: ['en', 'fr', 'de', 'it', 'es', 'pt', 'tr'],
+  })
+  .option('site', {
+    describe: 'choose a site',
+    default: 'bel3raby',
+    choices: ['bel3raby'],
+  })
   .option('settings', {
     describe: 'provide settings file path',
     default: `.${path.sep}settings.js`,
