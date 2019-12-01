@@ -4,7 +4,7 @@ import _ from 'lodash';
 import { argv } from 'yargs';
 import Promise from 'bluebird';
 import logger from '../logger';
-import { connect, asyncForEach, validBaseDir } from '../utils';
+import { connect, asyncForEach, validBaseDir, fetchFeaturedImage } from '../utils';
 
 const axios = require('axios');
 
@@ -200,7 +200,10 @@ function constructMapping(oldData, newData) {
         logger.warn(`Cannot find a corresponding ${field} with slug ${oldItem.slug}.`);
       } else {
         // add the id mapping oldId:newId ..
-        mapping[field][oldItem.id] = newItem[0].id;
+        mapping[field][oldItem.id] = {
+          id: newItem[0].id,
+          slug: newItem[0].slug,
+        };
       }
     });
   });
@@ -209,8 +212,58 @@ function constructMapping(oldData, newData) {
   return mapping;
 }
 
+async function fetchAllPosts(wp, { offset = 0, perPage = argv.test ? 10 : 100 } = {}) {
+  let posts = await wp.posts().perPage(perPage).offset(offset);
+  posts = await Promise.mapSeries(posts, async (post) => {
+    const res = fetchFeaturedImage(wp, post);
+    return res;
+  });
+
+
+  if (posts.length === perPage && !argv.test) {
+    return posts.concat(await fetchAllPosts(wp, { offset: offset + perPage }));
+  }
+
+  return posts;
+}
+
 async function insertAllPosts(wp, posts, mapping) {
   const newPosts = [];
+
+  const existingPosts = await fetchAllPosts(wp);
+
+  await asyncForEach(posts, async (post) => {
+    const existingPost = existingPosts.filter(item => item.slug === post.slug);
+
+    if (existingPost && existingPost.length > 0) {
+      logger.warn(`Post already exists: ${existingPost[0].slug}`);
+      newPosts.push(existingPost[0]);
+    } else {
+      logger.info(`Creating post with slug: ${post.slug} / ${post.categories} / ${post.tags}`);
+
+      await wp.posts()
+        .create({
+          slug: post.slug,
+          date: post.date,
+          date_gmt: post.date_gmt,
+          title: post.title.rendered,
+          content: post.content.rendered,
+          author: mapping.users[post.author],
+          featured_media: 13, // TODO: Fix to use correct media id
+          categories: post.categories.map(item => (mapping.categories[`${item}`] ? mapping.categories[`${item}`].id : null)).join(','),
+          tags: post.tags.map(item => (mapping.tags[`${item}`] ? mapping.tags[`${item}`].id : null)).join(','),
+        })
+        .then((response) => {
+          logger.info(`Post with slug: ${response.slug} was created.`);
+          newPosts.push(response);
+        })
+        .catch((err) => {
+          logger.error('Error happened on creating the post.');
+          logger.error(err.message);
+        });
+    }
+  });
+
   return newPosts;
 }
 
