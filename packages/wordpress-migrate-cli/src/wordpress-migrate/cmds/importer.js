@@ -239,7 +239,7 @@ async function insertAllPosts(wp, posts, mapping) {
       logger.warn(`Post already exists: ${existingPost[0].slug}`);
       newPosts.push(existingPost[0]);
     } else {
-      logger.info(`Creating post with slug: ${post.slug} / ${post.categories} / ${post.tags}`);
+      logger.info(`Creating post with slug: ${post.slug} / categories: ${post.categories} / tags: ${post.tags}`);
 
       await wp.posts()
         .create({
@@ -247,6 +247,7 @@ async function insertAllPosts(wp, posts, mapping) {
           date: post.date,
           date_gmt: post.date_gmt,
           title: post.title.rendered,
+          status: post.status,
           content: post.content.rendered,
           author: mapping.users[post.author],
           featured_media: 13, // TODO: Fix to use correct media id
