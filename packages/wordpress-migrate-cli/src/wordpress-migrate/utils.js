@@ -3,6 +3,13 @@ import path from 'path';
 import WPAPI from 'wpapi';
 import logger from './logger';
 
+const jsdom = require('jsdom');
+
+const { JSDOM } = jsdom;
+
+const axios = require('axios');
+
+
 export function connect({ host }) {
   logger.info(`Create connection with ${host}/wp-json`);
 
@@ -37,4 +44,61 @@ export function validBaseDir(basedir) {
   fs.existsSync(path.join(basedir, 'dump', 'entries', 'user')) &&
   fs.existsSync(path.join(basedir, 'dump', 'entries', 'category')) &&
   fs.existsSync(path.join(basedir, 'dump', 'entries', 'tag'));
+}
+
+
+export async function fetchFeaturedImage(wp, post) {
+  const featuredImageId = post.featured_media;
+
+  if (featuredImageId) {
+    try {
+      const featuredImage = await wp.media().id(featuredImageId);
+
+      return Object.assign(
+        {},
+        post,
+        { featured_media_url: featuredImage.guid.rendered },
+      );
+    } catch (error) {
+      logger.error(`Couldn't fetch featured image for post ${post.id}`);
+      logger.error(error.stack);
+
+      return post;
+    }
+  }
+
+  logger.warn(`Post ${post.id} with category ${post.categories[0]} is missing the featured image.`);
+
+  return post;
+}
+
+export async function fetchViralPressContent(wp, post) {
+  const content = post.content.rendered;
+  if (content.length >= 10) {
+    return post;
+  }
+
+  logger.info('Will fetch the viralpress content.');
+
+  // try to get the post content from viralpress
+  let data = '';
+
+  logger.info(`Url ${post.link}`);
+
+  await axios.get(post.link)
+    .then((res) => {
+      logger.info('Fetched the viralpress content...');
+      const dom = new JSDOM(res.data);
+      const postInnerContent = dom.window.document.querySelector('div.vp-entry').innerHTML;
+      data = postInnerContent;
+    })
+    .catch((err) => {
+      logger.error(err);
+    });
+
+  return Object.assign(
+    {},
+    post,
+    { content: { rendered: data } },
+  );
 }
