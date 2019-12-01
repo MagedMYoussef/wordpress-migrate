@@ -151,10 +151,11 @@ async function insertAllUsers(wp, users) {
       await wp.users()
         .create({
           name: user.name,
-          email: user.email,
+          first_name: user.name,
+          email: user.user_email,
+          slug: user.slug,
           password: 'zicQ3wmuj0Y8ba3',
           username: user.slug,
-          avatar_urls: user.avatar_urls,
           description: user.description,
         })
         .then((response) => {
@@ -171,6 +172,48 @@ async function insertAllUsers(wp, users) {
   return newUsers;
 }
 
+/**
+ * Construct mapping for categories/tags/users from old site to new one.
+ * maaping should follow oldId:newId stucture for each of the given items.
+ */
+function constructMapping(oldData, newData) {
+  const mapping = {};
+
+  Object.keys(oldData).forEach((field) => {
+    logger.info(`Mapping field: ${field}`);
+    if (!newData[field]) {
+      return;
+    }
+
+    if (!mapping[field]) {
+      mapping[field] = {};
+    }
+
+    // field objects ...
+    const fieldOldArr = oldData[field];
+    const fieldNewArr = newData[field];
+
+    fieldOldArr.forEach((oldItem) => {
+      // get the correspoding new item with the same slug..
+      const newItem = fieldNewArr.filter(item => item.slug === oldItem.slug);
+      if (!newItem || newItem.length === 0) {
+        logger.warn(`Cannot find a corresponding ${field} with slug ${oldItem.slug}.`);
+      } else {
+        // add the id mapping oldId:newId ..
+        mapping[field][oldItem.id] = newItem[0].id;
+      }
+    });
+  });
+
+  logger.info(`Mapping: ${JSON.stringify(mapping)}`);
+  return mapping;
+}
+
+async function insertAllPosts(wp, posts, mapping) {
+  const newPosts = [];
+  return newPosts;
+}
+
 export async function handler({
   host, lang, site, dir,
 }) {
@@ -184,40 +227,56 @@ export async function handler({
       throw new Error(`Directory ${dir} is not setup properly, please run init first`);
     }
 
-    // Retrieve all the saved files from the exporter
+    // Keep track of old/new data to be used for mapping
+    const oldData = {};
+    const newData = {};
 
+    // Retrieve all the saved files from the exporter
     logger.info('Getting categories from files...');
     let categories = await getAllCategories(basedir);
+    oldData.categories = categories;
     logger.info(`Retrieved ${categories.length} categories`);
 
     logger.info('Getting tags from files...');
     let tags = await getAllTags(basedir);
+    oldData.tags = tags;
     logger.info(`Retrieved ${tags.length} tags`);
 
     logger.info('Getting users from files...');
     let users = await getAllUsers(basedir);
+    oldData.users = users;
     logger.info(`Retrieved ${users.length} users`);
 
     logger.info('Getting posts from files...');
-    const posts = await getAllPosts(basedir);
+    let posts = await getAllPosts(basedir);
+    oldData.posts = posts;
     logger.info(`Retrieved ${posts.length} posts`);
 
     // Inserting into the new wordpress instance
     categories = categories.filter(item => item.count > 0);
     logger.info(`Migrating ${categories.length} categories...`);
     categories = await insertAllCategories(wp, categories);
+    newData.categories = categories;
     logger.info(`Categories were inserted successfully: ${categories.length}`);
 
     tags = tags.filter(item => item.count > 0);
     logger.info(`Migrating ${tags.length} tags...`);
     tags = await insertAllTags(wp, tags);
+    newData.tags = tags;
     logger.info('Tags were inserted successfully.');
 
     logger.info(`Migrating ${users.length} users...`);
     users = await insertAllUsers(wp, users);
+    newData.users = users;
     logger.info('Users were inserted successfully.');
 
+    logger.info('Constructing the mapping for posts...');
+    const mapping = constructMapping(oldData, newData);
+    logger.info('Mapping was constructed successfully!');
+
     logger.info(`Migrating ${posts.length} posts...`);
+    posts = await insertAllPosts(wp, posts, mapping);
+    logger.info('Posts were inserted successfully.');
   } catch (error) {
     logger.error(error);
     logger.info('Exiting...');
