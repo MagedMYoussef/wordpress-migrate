@@ -10,15 +10,28 @@ const { JSDOM } = jsdom;
 
 const axios = require('axios');
 
+export function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
 
-export function connect({ host }) {
-  logger.info(`Create connection with ${host}/wp-json`);
+export async function connect({ host }) {
+  await sleep(1000);
+  logger.info(`Create connection with ${host}/wp-json. ${argv.username}:${argv.password}`);
 
-  return new WPAPI({
+  const wp = new WPAPI({
     endpoint: `${host}/wp-json`,
     username: argv.username,
     password: argv.password,
   });
+
+  return wp;
+}
+
+export async function confirmAuth(wp) {
+  const me = await wp.users().me();
+  return me;
 }
 
 export function isFunction(thing) {
@@ -100,10 +113,4 @@ export async function fetchViralPressContent(wp, post) {
     post,
     { content: { rendered: data } },
   );
-}
-
-export function sleep(ms) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
 }

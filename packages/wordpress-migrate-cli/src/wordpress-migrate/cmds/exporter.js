@@ -4,7 +4,7 @@ import _ from 'lodash';
 import { argv } from 'yargs';
 import Promise from 'bluebird';
 import logger from '../logger';
-import { connect, fetchFeaturedImage, fetchViralPressContent, sleep } from '../utils';
+import { connect, confirmAuth, fetchFeaturedImage, fetchViralPressContent, sleep } from '../utils';
 
 async function fetchAllPosts(wp, { offset = 0, perPage = argv.test ? 10 : 50 } = {}) {
   let posts = await wp.posts()
@@ -81,6 +81,9 @@ export async function handler({
   logger.info('Connection to Wordpress established.');
 
   try {
+    const me = await confirmAuth(wp);
+    logger.info(`Authenticated with ${me.slug}`);
+
     const basedir = path.join(path.resolve(dir), lang);
 
     if (!validBaseDir(basedir)) {
