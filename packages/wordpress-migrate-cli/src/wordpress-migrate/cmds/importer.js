@@ -210,15 +210,20 @@ async function insertAllMedia(wp, media, baseDir) {
       const mediaUrl = mediaItem.guid.rendered;
       const dir = path.join(baseDir, 'export', 'media');
       const filename = mediaUrl.split('/').slice(-1)[0];
+      logger.info(`Media url: ${mediaUrl}, filename: ${filename}`);
+
+      if (!mediaUrl || !filename) {
+        return;
+      }
 
       try {
         // skip downloading if exists..
         if (!fs.existsSync(`${dir}/${filename}`)) {
-          logger.info(`Downloading media from url: ${mediaItem.guid.rendered} into ${mediaItem.slug}`);
+          logger.info(`Downloading media from url: ${mediaItem.guid.rendered} into ${filename}`);
           await downloadFile(mediaUrl, `${dir}/${filename}`);
-          logger.info(`Media download successful @ ${mediaItem.slug}`);
+          logger.info(`Media download successful @ ${filename}`);
         } else {
-          logger.info(`Media exists @ ${mediaItem.slug}`);
+          logger.info(`Media exists @ ${filename}`);
         }
 
         // Failed to download the file
@@ -227,7 +232,7 @@ async function insertAllMedia(wp, media, baseDir) {
           return;
         }
 
-        logger.info(`Creating media with slug: ${mediaItem.slug}`);
+        logger.info(`Creating media with slug: ${filename}`);
         await wp.media()
           .file(`${dir}/${filename}`)
           .create({
