@@ -4,7 +4,7 @@ import _ from 'lodash';
 import { argv } from 'yargs';
 import Promise from 'bluebird';
 import logger from '../logger';
-import { connect, fetchFeaturedImage, fetchViralPressContent } from '../utils';
+import { connect, fetchFeaturedImage, fetchViralPressContent, sleep } from '../utils';
 
 async function fetchAllPosts(wp, categoryIds, { offset = 0, perPage = argv.test ? 10 : 100 } = {}) {
   let posts = await wp.posts().categories(categoryIds).perPage(perPage).offset(offset);
@@ -17,6 +17,8 @@ async function fetchAllPosts(wp, categoryIds, { offset = 0, perPage = argv.test 
 
 
   if (posts.length === perPage && !argv.test) {
+    logger.info('Waiting for 5 seconds until the next request...');
+    await sleep(5000); // wait for 5 sec to avoid server hang
     return posts.concat(await fetchAllPosts(wp, categoryIds, { offset: offset + perPage }));
   }
 
@@ -26,7 +28,7 @@ async function fetchAllPosts(wp, categoryIds, { offset = 0, perPage = argv.test 
 async function fetchAllCategories(wp, { offset = 0, perPage = 100 } = {}) {
   const categories = wp.categories().perPage(perPage).offset(offset);
 
-  if (categories.length === perPage && !argv.test) {
+  if (categories.length === perPage) {
     return categories.concat(await fetchAllCategories(wp, { offset: offset + perPage }));
   }
 
@@ -36,7 +38,7 @@ async function fetchAllCategories(wp, { offset = 0, perPage = 100 } = {}) {
 async function fetchAllTags(wp, { offset = 0, perPage = 100 } = {}) {
   const tags = await wp.tags({ hideEmpty: true }).perPage(perPage).offset(offset);
 
-  if (tags.length === perPage && !argv.test) {
+  if (tags.length === perPage) {
     return tags.concat(await fetchAllTags(wp, { offset: offset + perPage }));
   }
 
@@ -46,7 +48,7 @@ async function fetchAllTags(wp, { offset = 0, perPage = 100 } = {}) {
 async function fetchAllUsers(wp, { offset = 0, perPage = 100 } = {}) {
   const users = await wp.users({ hideEmpty: true }).perPage(perPage).offset(offset);
 
-  if (users.length === perPage && !argv.test) {
+  if (users.length === perPage) {
     return users.concat(await fetchAllUsers(wp, { offset: offset + perPage }));
   }
 

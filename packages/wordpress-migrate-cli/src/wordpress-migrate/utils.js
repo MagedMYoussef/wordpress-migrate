@@ -60,9 +60,7 @@ export async function fetchFeaturedImage(wp, post) {
         { featured_media_url: featuredImage.guid.rendered },
       );
     } catch (error) {
-      logger.error(`Couldn't fetch featured image for post ${post.id}`);
-      logger.error(error.stack);
-
+      logger.error(`Couldn't fetch featured image for post ${post.id} / ${post.slug}`);
       return post;
     }
   }
@@ -101,4 +99,10 @@ export async function fetchViralPressContent(wp, post) {
     post,
     { content: { rendered: data } },
   );
+}
+
+export function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }

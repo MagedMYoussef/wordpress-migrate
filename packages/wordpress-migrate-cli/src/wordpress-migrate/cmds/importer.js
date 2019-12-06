@@ -115,7 +115,7 @@ async function insertAllTags(wp, tags) {
     } else {
       logger.info(`Creating tag with slug: ${tag.slug}`);
 
-      await wp.categories()
+      await wp.tags()
         .create({
           name: tag.name,
           slug: tag.slug,
@@ -212,7 +212,7 @@ function constructMapping(oldData, newData) {
   return mapping;
 }
 
-async function fetchAllPosts(wp, { offset = 0, perPage = argv.test ? 10 : 100 } = {}) {
+async function fetchAllPosts(wp, { offset = 0, perPage = 100 } = {}) {
   let posts = await wp.posts().perPage(perPage).offset(offset);
   posts = await Promise.mapSeries(posts, async (post) => {
     const res = fetchFeaturedImage(wp, post);
@@ -220,7 +220,7 @@ async function fetchAllPosts(wp, { offset = 0, perPage = argv.test ? 10 : 100 } 
   });
 
 
-  if (posts.length === perPage && !argv.test) {
+  if (posts.length === perPage) {
     return posts.concat(await fetchAllPosts(wp, { offset: offset + perPage }));
   }
 
@@ -249,7 +249,7 @@ async function insertAllPosts(wp, posts, mapping) {
           title: post.title.rendered,
           status: post.status,
           content: post.content.rendered,
-          author: mapping.users[post.author],
+          author: mapping.users[post.author].id,
           featured_media: 13, // TODO: Fix to use correct media id
           categories: post.categories.map(item => (mapping.categories[`${item}`] ? mapping.categories[`${item}`].id : null)).join(','),
           tags: post.tags.map(item => (mapping.tags[`${item}`] ? mapping.tags[`${item}`].id : null)).join(','),
