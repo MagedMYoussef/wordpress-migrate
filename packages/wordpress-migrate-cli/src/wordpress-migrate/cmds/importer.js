@@ -4,7 +4,7 @@ import _ from 'lodash';
 import { argv } from 'yargs';
 import Promise from 'bluebird';
 import logger from '../logger';
-import { connect, asyncForEach, validBaseDir, fetchFeaturedImage } from '../utils';
+import { connect, confirmAuth, downloadFile, asyncForEach, validBaseDir, fetchFeaturedImage } from '../utils';
 
 const axios = require('axios');
 
@@ -54,6 +54,19 @@ async function getAllUsers(baseDir) {
   });
 
   return users;
+}
+
+async function getAllMedia(baseDir) {
+  const media = [];
+
+  const dir = path.join(baseDir, 'dump', 'entries', 'media');
+
+  await fs.readdirSync(dir).forEach((file) => {
+    const item = fs.readJsonSync(`${dir}/${file}`);
+    media.push(item);
+  });
+
+  return media;
 }
 
 async function getAllPosts(baseDir) {
@@ -172,6 +185,75 @@ async function insertAllUsers(wp, users) {
   return newUsers;
 }
 
+async function fetchAllMedia(wp, { offset = 0, perPage = 100 } = {}) {
+  const media = await wp.media({ hideEmpty: true }).perPage(perPage).offset(offset);
+
+  if (media.length === perPage) {
+    return media.concat(await fetchAllMedia(wp, { offset: offset + perPage }));
+  }
+
+  return media;
+}
+
+async function insertAllMedia(wp, media, baseDir) {
+  const newMedia = [];
+  const existingMedias = await fetchAllMedia(wp);
+
+  await asyncForEach(media, async (mediaItem) => {
+    const existingMedia = existingMedias.filter(item => item.slug === mediaItem.slug);
+
+    if (existingMedia && existingMedia.length > 0) {
+      logger.warn(`Media already exists: ${existingMedia[0].slug}`);
+      newMedia.push(existingMedia[0]);
+    } else {
+      // download the file from the url
+      const mediaUrl = mediaItem.guid.rendered;
+      const dir = path.join(baseDir, 'export', 'media');
+      const filename = mediaUrl.split('/').slice(-1)[0];
+
+      try {
+        // skip downloading if exists..
+        if (!fs.existsSync(`${dir}/${filename}`)) {
+          logger.info(`Downloading media from url: ${mediaItem.guid.rendered} into ${mediaItem.slug}`);
+          await downloadFile(mediaUrl, `${dir}/${filename}`);
+          logger.info(`Media download successful @ ${mediaItem.slug}`);
+        } else {
+          logger.info(`Media exists @ ${mediaItem.slug}`);
+        }
+
+        // Failed to download the file
+        if (!fs.existsSync(`${dir}/${filename}`)) {
+          logger.info('Download failed. Skipping...');
+          return;
+        }
+
+        logger.info(`Creating media with slug: ${mediaItem.slug}`);
+        await wp.media()
+          .file(`${dir}/${filename}`)
+          .create({
+            slug: mediaItem.slug,
+            title: mediaItem.title.rendered,
+            alt_text: mediaItem.alt_text,
+            caption: mediaItem.caption.rendered,
+            description: mediaItem.description.rendered,
+          })
+          .then((response) => {
+            logger.info(`Media with slug: ${response.slug} was created.`);
+            newMedia.push(response);
+          })
+          .catch((err) => {
+            logger.error('Error happened on creating the media.');
+            logger.error(err.message);
+          });
+      } catch (err) {
+        logger.info(`Error @ ${err}`);
+      }
+    }
+  });
+
+  return newMedia;
+}
+
 /**
  * Construct mapping for categories/tags/users from old site to new one.
  * maaping should follow oldId:newId stucture for each of the given items.
@@ -231,6 +313,7 @@ async function fetchAllPosts(wp, { offset = 0, perPage = 100 } = {}) {
   return posts;
 }
 
+
 async function insertAllPosts(wp, posts, mapping) {
   const newPosts = [];
 
@@ -254,7 +337,7 @@ async function insertAllPosts(wp, posts, mapping) {
           status: post.status,
           content: post.content.rendered,
           author: mapping.users[post.author] ? mapping.users[post.author].id : 1,
-          featured_media: 13, // TODO: Fix to use correct media id
+          featured_media: mapping.media[post.featured_media].id,
           categories: post.categories.map(item => (mapping.categories[`${item}`] ? mapping.categories[`${item}`].id : null)).join(','),
           tags: post.tags.map(item => (mapping.tags[`${item}`] ? mapping.tags[`${item}`].id : null)).join(','),
         })
@@ -275,10 +358,13 @@ async function insertAllPosts(wp, posts, mapping) {
 export async function handler({
   host, lang, site, dir,
 }) {
-  const wp = connect({ host });
+  const wp = await connect({ host });
   logger.info('Connection to Wordpress established.');
 
   try {
+    const me = await confirmAuth(wp);
+    logger.info(`Authenticated with ${me.slug}`);
+
     const basedir = path.join(path.resolve(dir), lang);
 
     if (!validBaseDir(basedir)) {
@@ -290,20 +376,25 @@ export async function handler({
     const newData = {};
 
     // Retrieve all the saved files from the exporter
-    logger.info('Getting categories from files...');
-    let categories = await getAllCategories(basedir);
-    oldData.categories = categories;
-    logger.info(`Retrieved ${categories.length} categories`);
+    // logger.info('Getting categories from files...');
+    // let categories = await getAllCategories(basedir);
+    // oldData.categories = categories;
+    // logger.info(`Retrieved ${categories.length} categories`);
 
-    logger.info('Getting tags from files...');
-    let tags = await getAllTags(basedir);
-    oldData.tags = tags;
-    logger.info(`Retrieved ${tags.length} tags`);
+    // logger.info('Getting tags from files...');
+    // let tags = await getAllTags(basedir);
+    // oldData.tags = tags;
+    // logger.info(`Retrieved ${tags.length} tags`);
 
-    logger.info('Getting users from files...');
-    let users = await getAllUsers(basedir);
-    oldData.users = users;
-    logger.info(`Retrieved ${users.length} users`);
+    // logger.info('Getting users from files...');
+    // let users = await getAllUsers(basedir);
+    // oldData.users = users;
+    // logger.info(`Retrieved ${users.length} users`);
+
+    logger.info('Getting media from files...');
+    let media = await getAllMedia(basedir);
+    oldData.media = media;
+    logger.info(`Retrieved ${media.length} media`);
 
     logger.info('Getting posts from files...');
     let posts = await getAllPosts(basedir);
@@ -311,22 +402,27 @@ export async function handler({
     logger.info(`Retrieved ${posts.length} posts`);
 
     // Inserting into the new wordpress instance
-    categories = categories.filter(item => item.count > 0);
-    logger.info(`Migrating ${categories.length} categories...`);
-    categories = await insertAllCategories(wp, categories);
-    newData.categories = categories;
-    logger.info(`Categories were inserted successfully: ${categories.length}`);
+    // categories = categories.filter(item => item.count > 0);
+    // logger.info(`Migrating ${categories.length} categories...`);
+    // categories = await insertAllCategories(wp, categories);
+    // newData.categories = categories;
+    // logger.info(`Categories were inserted successfully: ${categories.length}`);
 
-    tags = tags.filter(item => item.count > 0);
-    logger.info(`Migrating ${tags.length} tags...`);
-    tags = await insertAllTags(wp, tags);
-    newData.tags = tags;
-    logger.info('Tags were inserted successfully.');
+    // tags = tags.filter(item => item.count > 0);
+    // logger.info(`Migrating ${tags.length} tags...`);
+    // tags = await insertAllTags(wp, tags);
+    // newData.tags = tags;
+    // logger.info('Tags were inserted successfully.');
 
-    logger.info(`Migrating ${users.length} users...`);
-    users = await insertAllUsers(wp, users);
-    newData.users = users;
-    logger.info('Users were inserted successfully.');
+    // logger.info(`Migrating ${users.length} users...`);
+    // users = await insertAllUsers(wp, users);
+    // newData.users = users;
+    // logger.info('Users were inserted successfully.');
+
+    logger.info(`Migrating ${media.length} media...`);
+    media = await insertAllMedia(wp, media, basedir);
+    newData.media = media;
+    logger.info('media were inserted successfully.');
 
     logger.info('Constructing the mapping for posts...');
     const mapping = constructMapping(oldData, newData);

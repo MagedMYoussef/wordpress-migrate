@@ -1,14 +1,29 @@
+import { argv } from 'yargs';
+import http from 'http';
 import fs from 'fs-extra';
 import path from 'path';
 import WPAPI from 'wpapi';
 import logger from './logger';
-import { argv } from 'yargs';
 
 const jsdom = require('jsdom');
 
 const { JSDOM } = jsdom;
 
 const axios = require('axios');
+
+export async function downloadFile(url, dest) {
+  await axios({
+    url,
+    responseType: 'stream',
+  }).then(response =>
+    new Promise((resolve, reject) => {
+      response.data
+        .pipe(fs.createWriteStream(dest))
+        .on('finish', () => resolve())
+        .on('error', e => reject(e));
+    }));
+}
+
 
 export function sleep(ms) {
   return new Promise((resolve) => {
