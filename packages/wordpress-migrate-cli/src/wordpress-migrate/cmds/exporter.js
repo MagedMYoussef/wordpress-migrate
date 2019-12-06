@@ -6,8 +6,12 @@ import Promise from 'bluebird';
 import logger from '../logger';
 import { connect, fetchFeaturedImage, fetchViralPressContent, sleep } from '../utils';
 
-async function fetchAllPosts(wp, categoryIds, { offset = 0, perPage = argv.test ? 10 : 100 } = {}) {
-  let posts = await wp.posts().categories(categoryIds).perPage(perPage).offset(offset);
+async function fetchAllPosts(wp, { offset = 0, perPage = argv.test ? 10 : 50 } = {}) {
+  let posts = await wp.posts()
+    .status(['draft', 'publish', 'pending'])
+    .perPage(perPage)
+    .offset(offset);
+
   posts = await Promise.mapSeries(posts, async (post) => {
     let res = fetchFeaturedImage(wp, post);
     // if the post is a viralpress post
@@ -19,7 +23,7 @@ async function fetchAllPosts(wp, categoryIds, { offset = 0, perPage = argv.test 
   if (posts.length === perPage && !argv.test) {
     logger.info('Waiting for 5 seconds until the next request...');
     await sleep(5000); // wait for 5 sec to avoid server hang
-    return posts.concat(await fetchAllPosts(wp, categoryIds, { offset: offset + perPage }));
+    return posts.concat(await fetchAllPosts(wp, { offset: offset + perPage }));
   }
 
   return posts;
@@ -73,7 +77,7 @@ export function builder(yargs) {
 export async function handler({
   host, lang, site, dir,
 }) {
-  const wp = connect({ host });
+  const wp = await connect({ host });
   logger.info('Connection to Wordpress established.');
 
   try {
@@ -92,8 +96,7 @@ export async function handler({
     logger.info(`Retrieved ${tags.length} tags`);
 
     logger.info('Fetching posts...');
-    const categoryIds = categories.map(category => category.id);
-    const posts = await fetchAllPosts(wp, categoryIds);
+    const posts = await fetchAllPosts(wp);
     logger.info(`Retrieved ${posts.length} posts`);
 
     logger.info('Fetching users...');
@@ -128,7 +131,7 @@ export async function handler({
       await fs.writeJson(file, Object.assign({}, user, { site, type: 'user' }));
     });
   } catch (error) {
-    logger.error(error);
+    logger.error(JSON.stringify(error));
     logger.info('Exiting...');
     process.exit(1);
   }

@@ -213,7 +213,11 @@ function constructMapping(oldData, newData) {
 }
 
 async function fetchAllPosts(wp, { offset = 0, perPage = 100 } = {}) {
-  let posts = await wp.posts().perPage(perPage).offset(offset);
+  let posts = await wp.posts()
+    .status(['draft', 'publish', 'pending'])
+    .perPage(perPage)
+    .offset(offset);
+
   posts = await Promise.mapSeries(posts, async (post) => {
     const res = fetchFeaturedImage(wp, post);
     return res;
@@ -249,7 +253,7 @@ async function insertAllPosts(wp, posts, mapping) {
           title: post.title.rendered,
           status: post.status,
           content: post.content.rendered,
-          author: mapping.users[post.author].id,
+          author: mapping.users[post.author] ? mapping.users[post.author].id : 1,
           featured_media: 13, // TODO: Fix to use correct media id
           categories: post.categories.map(item => (mapping.categories[`${item}`] ? mapping.categories[`${item}`].id : null)).join(','),
           tags: post.tags.map(item => (mapping.tags[`${item}`] ? mapping.tags[`${item}`].id : null)).join(','),
