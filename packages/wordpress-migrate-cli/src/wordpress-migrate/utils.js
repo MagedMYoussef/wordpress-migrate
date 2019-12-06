@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import WPAPI from 'wpapi';
 import logger from './logger';
+import { argv } from 'yargs';
 
 const jsdom = require('jsdom');
 
@@ -15,8 +16,8 @@ export function connect({ host }) {
 
   return new WPAPI({
     endpoint: `${host}/wp-json`,
-    username: 'magedm',
-    password: 'mg01069745475',
+    username: argv.username,
+    password: argv.password,
   });
 }
 

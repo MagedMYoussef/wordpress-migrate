@@ -17,6 +17,14 @@ const options = require('yargs') // eslint-disable-line
     default: 'bel3raby',
     choices: ['bel3raby'],
   })
+  .option('username', {
+    describe: 'enter a login username',
+    default: 'magedm',
+  })
+  .option('password', {
+    describe: 'enter a login password',
+    default: 'mg01069745475',
+  })
   .option('settings', {
     describe: 'provide settings file path',
     default: `.${path.sep}settings.js`,
