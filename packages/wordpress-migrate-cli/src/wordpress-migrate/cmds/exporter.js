@@ -23,7 +23,7 @@ async function fetchAllPosts(wp, categoryIds, { offset = 0, perPage = argv.test 
   return posts;
 }
 
-async function fetchAllCategories(wp, { offset = 0, perPage = argv.test ? 10 : 100 } = {}) {
+async function fetchAllCategories(wp, { offset = 0, perPage = 100 } = {}) {
   const categories = wp.categories().perPage(perPage).offset(offset);
 
   if (categories.length === perPage && !argv.test) {
@@ -33,7 +33,7 @@ async function fetchAllCategories(wp, { offset = 0, perPage = argv.test ? 10 : 1
   return categories;
 }
 
-async function fetchAllTags(wp, { offset = 0, perPage = argv.test ? 10 : 100 } = {}) {
+async function fetchAllTags(wp, { offset = 0, perPage = 100 } = {}) {
   const tags = await wp.tags({ hideEmpty: true }).perPage(perPage).offset(offset);
 
   if (tags.length === perPage && !argv.test) {
@@ -43,7 +43,7 @@ async function fetchAllTags(wp, { offset = 0, perPage = argv.test ? 10 : 100 } =
   return tags;
 }
 
-async function fetchAllUsers(wp, { offset = 0, perPage = argv.test ? 10 : 100 } = {}) {
+async function fetchAllUsers(wp, { offset = 0, perPage = 100 } = {}) {
   const users = await wp.users({ hideEmpty: true }).perPage(perPage).offset(offset);
 
   if (users.length === perPage && !argv.test) {
