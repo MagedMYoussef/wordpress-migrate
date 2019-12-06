@@ -195,7 +195,7 @@ export async function insertAllPosts(wp, posts, mapping) {
           status: post.status,
           content: post.content.rendered,
           author: mapping.users[post.author] ? mapping.users[post.author].id : 1,
-          featured_media: mapping.media[post.featured_media].id,
+          featured_media: mapping.media[post.featured_media] ? mapping.media[post.featured_media].id : null,
           categories: post.categories.map(item => (mapping.categories[`${item}`] ? mapping.categories[`${item}`].id : null)).join(','),
           tags: post.tags.map(item => (mapping.tags[`${item}`] ? mapping.tags[`${item}`].id : null)).join(','),
         })

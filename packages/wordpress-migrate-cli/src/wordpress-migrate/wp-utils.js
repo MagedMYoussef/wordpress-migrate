@@ -47,7 +47,7 @@ export async function fetchAllTags(wp, { offset = 0, perPage = 100 } = {}) {
 }
 
 export async function fetchAllUsers(wp, { offset = 0, perPage = 100 } = {}) {
-  const users = await wp.users({ hideEmpty: true }).perPage(perPage).offset(offset);
+  const users = await wp.users().param({ who: 'authors' }).perPage(perPage).offset(offset);
 
   if (users.length === perPage) {
     return users.concat(await fetchAllUsers(wp, { offset: offset + perPage }));

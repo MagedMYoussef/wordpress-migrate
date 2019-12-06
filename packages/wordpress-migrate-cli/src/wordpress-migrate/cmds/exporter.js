@@ -35,6 +35,10 @@ export async function handler({
       throw new Error(`Directory ${dir} is not setup properly, please run init first`);
     }
 
+    logger.info('Fetching users...');
+    const users = await fetchAllUsers(wp);
+    logger.info(`Retrieved ${users.length} users`);
+
     logger.info('Fetching categories...');
     const categories = await fetchAllCategories(wp);
     logger.info(`Retrieved ${categories.length} categories`);
@@ -46,10 +50,6 @@ export async function handler({
     logger.info('Fetching posts...');
     const posts = await fetchAllPosts(wp);
     logger.info(`Retrieved ${posts.length} posts`);
-
-    logger.info('Fetching users...');
-    const users = await fetchAllUsers(wp);
-    logger.info(`Retrieved ${users.length} users`);
 
     logger.info('Fetching media...');
     const media = await fetchAllMedia(wp);
