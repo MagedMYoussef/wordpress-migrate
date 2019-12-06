@@ -59,6 +59,16 @@ async function fetchAllUsers(wp, { offset = 0, perPage = 100 } = {}) {
   return users;
 }
 
+async function fetchAllMedia(wp, { offset = 0, perPage = 100 } = {}) {
+  const media = await wp.media({ hideEmpty: true }).perPage(perPage).offset(offset);
+
+  if (media.length === perPage) {
+    return media.concat(await fetchAllMedia(wp, { offset: offset + perPage }));
+  }
+
+  return media;
+}
+
 function validBaseDir(basedir) {
   return fs.existsSync(path.join(basedir, 'dump', 'assets')) &&
   fs.existsSync(path.join(basedir, 'dump', 'entries', 'post')) &&
@@ -106,6 +116,10 @@ export async function handler({
     const users = await fetchAllUsers(wp);
     logger.info(`Retrieved ${users.length} users`);
 
+    logger.info('Fetching media...');
+    const media = await fetchAllMedia(wp);
+    logger.info(`Retrieved ${media.length} media`);
+
     logger.info('Exporting categories...');
     categories.map(async (category) => {
       const file = path.join(basedir, 'dump', 'entries', 'category', `${site}-${category.id}.json`);
@@ -132,6 +146,13 @@ export async function handler({
       const file = path.join(basedir, 'dump', 'entries', 'user', `${site}-${user.id}.json`);
       logger.info(`Outputting user ${user.id} in ${path.relative(basedir, file)}`);
       await fs.writeJson(file, Object.assign({}, user, { site, type: 'user' }));
+    });
+
+    logger.info('Exporting media...');
+    media.map(async (item) => {
+      const file = path.join(basedir, 'dump', 'entries', 'media', `${site}-${item.id}.json`);
+      logger.info(`Outputting media ${item.id} in ${path.relative(basedir, file)}`);
+      await fs.writeJson(file, Object.assign({}, item, { site, type: 'media' }));
     });
   } catch (error) {
     logger.error(JSON.stringify(error));
